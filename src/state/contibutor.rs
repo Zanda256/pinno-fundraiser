@@ -33,7 +33,7 @@ pub struct ContributeIxData {
 }
 
 impl DataLen for ContributeIxData {
-    const LEN: usize = core::mem::size_of::<ContributorData>();
+    const LEN: usize = core::mem::size_of::<ContributeIxData>();
 }
 
 impl ContributeIxData {

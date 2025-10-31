@@ -18,6 +18,8 @@ pub fn process_instruction(
 ) -> ProgramResult {
     assert_eq!(program_id, &ID);
 
+    pinocchio_log::log!("instruction data length: {}", instruction_data.len());
+
     let (discriminator, data) = instruction_data
         .split_first()
         .ok_or(pinocchio::program_error::ProgramError::InvalidInstructionData)?;
@@ -33,9 +35,15 @@ pub fn process_instruction(
             instructions::process_initialize_instruction(accounts, data)?;
         }
         FundraiserInstructions::Contribute => {
-            instructions::process_contribute_instruction(accounts, data)?;
+            instructions::process_contribute_instruction(program_id, accounts, data)?;
         }
-        _ => return Err(pinocchio::program_error::ProgramError::InvalidInstructionData),
+        _ => {
+            pinocchio_log::log!(
+                "unknown instruction discriminator: {}",
+                discriminator.to_owned(),
+            );
+            return Err(pinocchio::program_error::ProgramError::InvalidInstructionData);
+        }
     }
 
     Ok(())

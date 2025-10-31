@@ -63,13 +63,18 @@ pub fn load_ix_data<T>(bytes: &[u8]) -> Result<&T, ProgramError>
 where
     T: DataLen + Pod + Zeroable,
 {
-    pinocchio_log::log!(
-        "load_ix_data : bytes.len(): {} - T::LEN: {}",
-        bytes.len(),
-        T::LEN
-    );
+    // pinocchio_log::log!(
+    //     "load_ix_data : bytes.len(): {} - T::LEN: {}",
+    //     bytes.len(),
+    //     T::LEN
+    // );
 
     if bytes.len() != T::LEN {
+        pinocchio_log::log!(
+            "Unexpected data length load_ix_data : bytes.len(): {} - T::LEN: {}",
+            bytes.len(),
+            T::LEN
+        );
         return Err(ProgramError::InvalidInstructionData.into());
     }
 

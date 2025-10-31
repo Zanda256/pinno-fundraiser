@@ -7,10 +7,10 @@ use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::Seed;
 use pinocchio::instruction::Signer;
 use pinocchio::program_error::{ProgramError, ToStr};
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{self, Pubkey};
 use pinocchio::sysvars::rent::Rent;
 use pinocchio::sysvars::{Sysvar, clock::Clock};
-use pinocchio::{ProgramResult, msg, pubkey};
+use pinocchio::{ProgramResult, msg, pubkey::find_program_address};
 //use pinocchio_associated_token_account::solana_program;
 use pinocchio_associated_token_account::instructions::Create as Create_ATA;
 use pinocchio_system::instructions::{CreateAccount, CreateAccountWithSeed};
@@ -20,6 +20,7 @@ use pinocchio_token::state::{Mint, TokenAccount};
 use crate::helpers::create_pda_account;
 
 pub fn process_contribute_instruction(
+    program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
@@ -39,6 +40,14 @@ pub fn process_contribute_instruction(
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
+
+    // pinocchio_log::log!("contributor {}", contributor.key());
+    // pinocchio_log::log!("mint_to_raise {}", mint_to_raise.key());
+    // pinocchio_log::log!("fundraiser {}", fundraiser.key());
+    // pinocchio_log::log!("contributor_account {}", contributor_account.key());
+    // pinocchio_log::log!("contributor_ata {}", contributor_ata.key());
+    // pinocchio_log::log!("vault {}", vault.key());
+    // pinocchio_log::log!("token_program {}", token_program.key());
 
     // Check signer
     check_signer(&contributor)?;
@@ -60,26 +69,38 @@ pub fn process_contribute_instruction(
         return Err(ProgramError::Immutable);
     }
 
-    let seeds = &[
-        b"contributor".as_ref(),
-        fundraiser.key().as_ref(),
-        contributor.key().as_ref(),
+    let ix_data = load_ix_data::<ContributeIxData>(&instruction_data)?;
+
+    let seeds: &[&[u8]] = &[
+        b"contributor",   //.as_ref(),
+        fundraiser.key(), //.as_ref(),
+        contributor.key(), //.as_ref(),
+                          //    &ix_data.c_bump,
     ];
-    let (contributor_account_pda, c_bump) = pubkey::find_program_address(seeds, &crate::ID);
+    let (contributor_account_pda, c_bump) = find_program_address(seeds, program_id);
     if contributor_account_pda.ne(contributor_account.key()) {
         return Err(ProgramError::InvalidSeeds);
     }
 
-    if contributor_account.data_is_empty() {
-        let c_seed = c_bump.to_le_bytes();
+    if u8::from_le_bytes(ix_data.c_bump) != c_bump {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    if contributor_account.data_is_empty() || contributor_account.lamports() == 0 {
+        msg!("contributor PDA  account data is empty");
+        // let c_seed = ix_data.c_bump;
+        let c_seed = [c_bump.to_le()];
         let seed = [
-            Seed::from(FUNDRAISER_SEED),
-            Seed::from(contributor.key().as_ref()),
+            Seed::from(b"contributor"), // .as_ref()
+            Seed::from(fundraiser.key()),
+            Seed::from(contributor.key()), // .as_ref()
             Seed::from(&c_seed),
         ];
 
         create_pda_account::<ContributorData>(contributor, contributor_account, &seed)?;
     }
+
+    msg!("contributor PDA  account data verified as empty");
 
     // check contributor_ata validity and mutability
     // let derrived_contributor_ata = pinocchio_associated_token_account::get_associated_token_address(
@@ -95,9 +116,15 @@ pub fn process_contribute_instruction(
         return Err(ProgramError::Immutable);
     }
 
+    let o = contributor_ata.owner().to_ascii_lowercase();
+    println!("contributor ATA owner {:?}", o);
+    pinocchio_log::log!("&token_program.key() {}", token_program.key());
+
     if !contributor_ata.is_owned_by(&token_program.key()) {
         return Err(ProgramError::IllegalOwner);
     }
+
+    msg!("contributor ATA verified");
     // check vault_ata PDA validity and mutability
     if !vault.is_writable() {
         return Err(ProgramError::Immutable);
@@ -106,6 +133,9 @@ pub fn process_contribute_instruction(
     if !vault.is_owned_by(&token_program.key()) {
         return Err(ProgramError::IllegalOwner);
     }
+
+    msg!("vault verified.");
+
     // check amount is within range
     let mut decimals: u8 = 0;
 
@@ -156,15 +186,25 @@ pub fn process_contribute_instruction(
         }
     }
 
-    pinocchio_token::instructions::TransferChecked {
-        mint: &mint_to_raise,
+    // pinocchio_token::instructions::TransferChecked {
+    //     mint: &mint_to_raise,
+    //     from: &contributor_ata,
+    //     to: &vault,
+    //     amount: amount,
+    //     authority: &contributor,
+    //     decimals: decimals,
+    // }
+    // .invoke()?;
+
+    pinocchio_token::instructions::Transfer {
         from: &contributor_ata,
         to: &vault,
         amount: amount,
         authority: &contributor,
-        decimals: decimals,
     }
     .invoke()?;
+
+    msg!("Transfer successfull");
 
     Ok(())
 }
