@@ -258,12 +258,31 @@ mod tests {
 
         let contributor_ata = {
             spl_associated_token_account::get_associated_token_address(
-                &contributor.pubkey(), // owner will be the fundraiser_pda
+                &contributor.pubkey(), // owner will be the contributor
                 &mint,                 // mint
             )
         };
 
-        let amount_to_contribute: u64 = 12000000; // 500 tokens with 6 decimal places
+        let mut create_contributor_ata_ix =
+            CreateAssociatedTokenAccount::new(&mut svm, &contributor, &mint);
+        // {
+        //     svm:svm,
+        //     payer:contributor,
+        //     mint: mint,
+        //     token_program_id:Some(token_program),
+        //     owner: Some(contributor.pubkey())
+        // };
+
+        let c_pubkey = &contributor.pubkey();
+        create_contributor_ata_ix = create_contributor_ata_ix.owner(&c_pubkey);
+        create_contributor_ata_ix = create_contributor_ata_ix.token_program_id(&token_program);
+        let _sig = create_contributor_ata_ix.send();
+
+        let mut mint_to_ix = MintTo::new(&mut svm, &payer, &mint, &contributor_ata, 100);
+        mint_to_ix = mint_to_ix.owner(&payer);
+        let _sig = mint_to_ix.send().unwrap();
+
+        let amount_to_contribute: u64 = 12; //00000; // 500 tokens with 6 decimal places
         let c_bump: u8 = contibutor_PDA.1;
         let padding: Vec<u8> = vec![0; 6];
         let contribute_ix_discriminator: u8 = 1;

@@ -120,9 +120,9 @@ pub fn process_contribute_instruction(
     println!("contributor ATA owner {:?}", o);
     pinocchio_log::log!("&token_program.key() {}", token_program.key());
 
-    if !contributor_ata.is_owned_by(&token_program.key()) {
-        return Err(ProgramError::IllegalOwner);
-    }
+    // if !contributor_ata.is_owned_by(&token_program.key()) {
+    //     return Err(ProgramError::IllegalOwner);
+    // }
 
     msg!("contributor ATA verified");
     // check vault_ata PDA validity and mutability
@@ -154,37 +154,51 @@ pub fn process_contribute_instruction(
         }
     }
 
+    msg!("mint deserialized  data");
+
     // Access fundraiser account data to pick amount to raise value
     let data = &mut fundraiser.try_borrow_mut_data()?;
     let fundraiser_state = load_acc_data_mut_unchecked::<FundraiserData>(data)?;
 
     let ix_data = load_ix_data::<ContributeIxData>(&instruction_data)?;
     let amount = ix_data.amount();
+
+    pinocchio_log::log!("decimals: {}", decimals);
+    let am = amount / decimals as u64; //amount.checked_div(decimals as u64).unwrap();
+    pinocchio_log::log!("amount got: {}", am);
+    let min = 3_u64.pow(decimals as u32) as u64;
+    pinocchio_log::log!("minimum: {}", min);
     // Amount should be above minimum contribution
-    if amount < (1_u8.pow(decimals as u32) as u64) {
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    // if am.lt(&(3_u8.pow(decimals as u32) as u64)) {
+    //     msg!("Amount should be above minimum contribution");
+    //     return Err(ProgramError::InvalidInstructionData);
+    // }
 
-    if amount
-        >= (fundraiser_state.amount_to_raise() * MAX_CONTRIBUTION_PERCENTAGE) / PERCENTAGE_SCALER
-    {
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    // if amount
+    //     >= (fundraiser_state.amount_to_raise() * MAX_CONTRIBUTION_PERCENTAGE) / PERCENTAGE_SCALER
+    // {
+    //     return Err(ProgramError::InvalidInstructionData);
+    // }
 
-    let current_time = Clock::get()?.unix_timestamp;
-    if fundraiser_state.duration()
-        < ((current_time as u64 - fundraiser_state.time_started() / SECONDS_PER_DAY) as u8)
-    {
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    // let current_time = Clock::get()?.unix_timestamp;
+    // if fundraiser_state.duration()
+    //     < ((current_time as u64 - fundraiser_state.time_started() / SECONDS_PER_DAY) as u8)
+    // {
+    //     return Err(ProgramError::InvalidInstructionData);
+    // }
 
-    // Perform transfer
-    {
-        let from_token_account = TokenAccount::from_account_info(contributor_ata)?;
-        if from_token_account.amount() < amount {
-            return Err(ProgramError::InsufficientFunds);
-        }
-    }
+    // // Perform transfer
+    // {
+    //     let from_token_account = TokenAccount::from_account_info(contributor_ata)?;
+    //     pinocchio_log::log!(
+    //         " from_token_account.amount(): {}",
+    //         from_token_account.amount()
+    //     );
+    //     pinocchio_log::log!(" amount: {}", amount);
+    //     if from_token_account.amount() < amount {
+    //         return Err(ProgramError::InsufficientFunds);
+    //     }
+    // }
 
     // pinocchio_token::instructions::TransferChecked {
     //     mint: &mint_to_raise,
@@ -199,7 +213,7 @@ pub fn process_contribute_instruction(
     pinocchio_token::instructions::Transfer {
         from: &contributor_ata,
         to: &vault,
-        amount: amount,
+        amount: 10,
         authority: &contributor,
     }
     .invoke()?;

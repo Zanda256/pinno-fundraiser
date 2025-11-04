@@ -1,8 +1,10 @@
 mod contribute;
 mod initialize;
+mod refund;
 
 pub use contribute::*;
 pub use initialize::*;
+pub use refund::*;
 
 pub enum FundraiserInstructions {
     Initialize = 0,
