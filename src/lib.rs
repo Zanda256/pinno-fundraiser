@@ -37,6 +37,9 @@ pub fn process_instruction(
         FundraiserInstructions::Contribute => {
             instructions::process_contribute_instruction(program_id, accounts, data)?;
         }
+        FundraiserInstructions::Refund => {
+            instructions::process_refund_instruction(accounts, data)?;
+        }
         _ => {
             pinocchio_log::log!(
                 "unknown instruction discriminator: {}",

@@ -50,6 +50,7 @@ pub fn process_refund_instruction(
     let seed = &[FUNDRAISER_SEED, maker.key().as_ref()];
     let (pda_fundraiser, f_bump) = pubkey::find_program_address(seed, &crate::ID);
 
+    msg!("checking fundraiser PDA");
     if pda_fundraiser.ne(fundraiser.key()) {
         return Err(ProgramError::InvalidAccountOwner);
     }
@@ -61,6 +62,7 @@ pub fn process_refund_instruction(
     }
 
     if !fundraiser.is_owned_by(&crate::ID) {
+        pinocchio_log::log!("fundraiser.owner() {}", fundraiser.owner());
         return Err(ProgramError::IllegalOwner);
     }
 

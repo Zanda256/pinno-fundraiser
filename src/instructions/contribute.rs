@@ -116,13 +116,15 @@ pub fn process_contribute_instruction(
         return Err(ProgramError::Immutable);
     }
 
-    let o = contributor_ata.owner().to_ascii_lowercase();
-    println!("contributor ATA owner {:?}", o);
+    pinocchio_log::log!("contributor ATA owner {}", contributor_ata.owner());
     pinocchio_log::log!("&token_program.key() {}", token_program.key());
 
     // if !contributor_ata.is_owned_by(&token_program.key()) {
     //     return Err(ProgramError::IllegalOwner);
     // }
+    if contributor_ata.owner() != token_program.key() {
+        return Err(ProgramError::IllegalOwner);
+    }
 
     msg!("contributor ATA verified");
     // check vault_ata PDA validity and mutability
@@ -141,7 +143,7 @@ pub fn process_contribute_instruction(
 
     // Access mint account to retrieve decimals
     // Try to parse as TokenAccount
-    let m = Mint::from_account_info(mint_to_raise).unwrap();
+    // let m = Mint::from_account_info(mint_to_raise).unwrap();
     match Mint::from_account_info(mint_to_raise) {
         Ok(m_account) => {
             if !m_account.is_initialized() {

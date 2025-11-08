@@ -169,7 +169,7 @@ pub fn process_initialize_instruction(
         system_program: system_program,
         token_program: token_program,
     }
-    .invoke_signed(&[signer_seeds]);
+    .invoke_signed(&[signer_seeds])?;
 
     // Creating the instruction instance
     // let initialize_account_instruction = InitializeAccount {
