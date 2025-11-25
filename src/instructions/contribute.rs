@@ -77,7 +77,7 @@ pub fn process_contribute_instruction(
         contributor.key(), //.as_ref(),
                           //    &ix_data.c_bump,
     ];
-    let (contributor_account_pda, c_bump) = find_program_address(seeds, program_id);
+    let (contributor_account_pda, c_bump) = find_program_address(seeds, &crate::ID);
     if contributor_account_pda.ne(contributor_account.key()) {
         return Err(ProgramError::InvalidSeeds);
     }
@@ -162,32 +162,38 @@ pub fn process_contribute_instruction(
     let data = &mut fundraiser.try_borrow_mut_data()?;
     let fundraiser_state = load_acc_data_mut_unchecked::<FundraiserData>(data)?;
 
+    // Access fundraiser account data to pick amount to raise value
+    let c_data = &mut contributor_account.try_borrow_mut_data()?;
+    let contributor_account_state = load_acc_data_mut_unchecked::<ContributorData>(c_data)?;
+
     let ix_data = load_ix_data::<ContributeIxData>(&instruction_data)?;
     let amount = ix_data.amount();
 
     pinocchio_log::log!("decimals: {}", decimals);
-    let am = amount / decimals as u64; //amount.checked_div(decimals as u64).unwrap();
-    pinocchio_log::log!("amount got: {}", am);
+    pinocchio_log::log!("amount got: {}", amount);
     let min = 3_u64.pow(decimals as u32) as u64;
     pinocchio_log::log!("minimum: {}", min);
+
     // Amount should be above minimum contribution
-    // if am.lt(&(3_u8.pow(decimals as u32) as u64)) {
-    //     msg!("Amount should be above minimum contribution");
-    //     return Err(ProgramError::InvalidInstructionData);
-    // }
+    if amount.lt(&(1_u64.pow(decimals as u32))) {
+        msg!("Amount should be above minimum contribution");
+        return Err(ProgramError::InvalidInstructionData);
+    }
 
-    // if amount
-    //     >= (fundraiser_state.amount_to_raise() * MAX_CONTRIBUTION_PERCENTAGE) / PERCENTAGE_SCALER
-    // {
-    //     return Err(ProgramError::InvalidInstructionData);
-    // }
+    // Contributor percentage should not be above
+    if amount + contributor_account_state.amount()
+        >= (fundraiser_state.amount_to_raise() * MAX_CONTRIBUTION_PERCENTAGE) / PERCENTAGE_SCALER
+    {
+        return Err(ProgramError::InvalidInstructionData);
+    }
 
-    // let current_time = Clock::get()?.unix_timestamp;
-    // if fundraiser_state.duration()
-    //     < ((current_time as u64 - fundraiser_state.time_started() / SECONDS_PER_DAY) as u8)
-    // {
-    //     return Err(ProgramError::InvalidInstructionData);
-    // }
+    // check if fundraising duration hasn't expired yet.
+    let current_time = Clock::get()?.unix_timestamp;
+    if fundraiser_state.duration()
+        < ((current_time as u64 - fundraiser_state.time_started() / SECONDS_PER_DAY) as u8)
+    {
+        return Err(ProgramError::InvalidInstructionData);
+    }
 
     // // Perform transfer
     // {
@@ -215,12 +221,15 @@ pub fn process_contribute_instruction(
     pinocchio_token::instructions::Transfer {
         from: &contributor_ata,
         to: &vault,
-        amount: 10,
+        amount: amount,
         authority: &contributor,
     }
     .invoke()?;
 
     msg!("Transfer successfull");
+
+    fundraiser_state.set_current_amount(fundraiser_state.current_amount() + amount);
+    contributor_account_state.set_amount(contributor_account_state.amount() + amount);
 
     Ok(())
 }

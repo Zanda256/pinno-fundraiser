@@ -1,3 +1,5 @@
+//#![feature(slice_as_array)]
+
 use pinocchio::{ProgramResult, account_info::AccountInfo, entrypoint, msg, pubkey::Pubkey};
 
 mod errors;

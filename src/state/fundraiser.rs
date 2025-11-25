@@ -87,7 +87,7 @@ impl DataLen for FundraiserData {
 pub struct InitializeFundraiserIxData {
     pub amount_to_raise: [u8; 8],
     pub duration: [u8; 1],
-    pub bump: [u8; 1],
+    pub f_pda_bump: [u8; 1],
     _padding: [u8; 6],
 }
 
@@ -114,5 +114,9 @@ impl InitializeFundraiserIxData {
 
     pub fn set_padding(&mut self) {
         self._padding = [0u8; 6];
+    }
+
+    pub fn f_pda_bump(&self) -> u8 {
+        u8::from_le_bytes(self.f_pda_bump)
     }
 }

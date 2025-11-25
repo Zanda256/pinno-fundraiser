@@ -1,7 +1,7 @@
 use crate::helpers::{DataLen, check_signer, load_acc_data_mut_unchecked, load_ix_data};
 use crate::state::{
     FUNDRAISER_SEED, FundraiserData, InitializeFundraiserIxData, MIN_AMOUNT_TO_RAISE,
-    SECONDS_PER_DAY,
+    MINIMUM_DURATION, SECONDS_PER_DAY,
 };
 use pinocchio::account_info::AccountInfo;
 use pinocchio::instruction::Seed;
@@ -81,7 +81,11 @@ pub fn process_initialize_instruction(
     }
 
     if !(ix_data.amount_to_raise() > MIN_AMOUNT_TO_RAISE.pow(6 as u32)) {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    if !(ix_data.duration() >= MINIMUM_DURATION) {
+        return Err(ProgramError::InvalidInstructionData);
     }
 
     // msg!("amount to raise checked successfully!!");
@@ -90,7 +94,10 @@ pub fn process_initialize_instruction(
     let (pda_fundraiser, f_bump) = pubkey::find_program_address(seed, &crate::ID);
 
     if pda_fundraiser.ne(fundraiser.key()) {
-        return Err(ProgramError::InvalidAccountOwner);
+        return Err(ProgramError::InvalidSeeds);
+    }
+    if f_bump != ix_data.f_pda_bump() {
+        return Err(ProgramError::InvalidInstructionData);
     }
 
     // Ensure that the account to initialize is writable
