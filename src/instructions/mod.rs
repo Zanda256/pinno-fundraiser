@@ -24,7 +24,7 @@ impl TryFrom<&u8> for FundraiserInstructions {
             0 => Ok(FundraiserInstructions::Initialize),
             1 => Ok(FundraiserInstructions::Contribute),
             2 => Ok(FundraiserInstructions::Refund),
-            // 3 => Ok(FundraiserInstrctions::MakeV2),
+            3 => Ok(FundraiserInstructions::Check),
             _ => Err(pinocchio::program_error::ProgramError::InvalidInstructionData),
         }
     }

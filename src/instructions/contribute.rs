@@ -1,3 +1,4 @@
+use crate::errors::FundraiserError;
 use crate::helpers::{DataLen, check_signer, load_acc_data_mut_unchecked, load_ix_data};
 use crate::state::{
     ContributeIxData, ContributorData, FUNDRAISER_SEED, FundraiserData, InitializeFundraiserIxData,
@@ -171,7 +172,7 @@ pub fn process_contribute_instruction(
 
     pinocchio_log::log!("decimals: {}", decimals);
     pinocchio_log::log!("amount got: {}", amount);
-    let min = 3_u64.pow(decimals as u32) as u64;
+    let min = 3_u64 * 10_u64.pow(decimals as u32) as u64;
     pinocchio_log::log!("minimum: {}", min);
 
     // Amount should be above minimum contribution
@@ -180,11 +181,26 @@ pub fn process_contribute_instruction(
         return Err(ProgramError::InvalidInstructionData);
     }
 
+    pinocchio_log::log!(
+        "amount + contributor_account_state.amount(): {}",
+        amount + contributor_account_state.amount()
+    );
+
+    pinocchio_log::log!(
+        "(fundraiser_state.amount_to_raise() * MAX_CONTRIBUTION_PERCENTAGE) / PERCENTAGE_SCALER: {}",
+        (fundraiser_state.amount_to_raise() * MAX_CONTRIBUTION_PERCENTAGE) / PERCENTAGE_SCALER
+    );
     // Contributor percentage should not be above
     if amount + contributor_account_state.amount()
-        >= (fundraiser_state.amount_to_raise() * MAX_CONTRIBUTION_PERCENTAGE) / PERCENTAGE_SCALER
+        > (fundraiser_state.amount_to_raise() * MAX_CONTRIBUTION_PERCENTAGE) / PERCENTAGE_SCALER
     {
-        return Err(ProgramError::InvalidInstructionData);
+        pinocchio_log::log!(
+            "reached max contributor percentage for user: {}",
+            contributor.key()
+        );
+        return Err(ProgramError::from(
+            FundraiserError::ContributorMaxPercentage,
+        ));
     }
 
     // check if fundraising duration hasn't expired yet.
